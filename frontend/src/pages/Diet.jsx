@@ -28,34 +28,95 @@ const MEAL_CONFIG = {
 
 const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack1', 'snack2'];
 
-// ─── Demo plans by goal ───────────────────────────────────────────────────────
-
-const DEMO_PLANS = {
-  'fat loss': {
-    goal: 'fat loss',
-    breakfast: { name: 'Greek Yogurt Parfait',          calories: 320, protein: 28, carbs: 35, fat: 7,  image: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=600&q=80', items: ['200g non-fat Greek yogurt', '1/2 cup blueberries', '2 tbsp granola', '1 tsp honey', 'Chia seeds'] },
-    lunch:     { name: 'Grilled Chicken Salad',          calories: 450, protein: 42, carbs: 28, fat: 14, image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80', items: ['180g grilled chicken breast', 'Mixed greens', 'Cherry tomatoes', '1 tbsp olive oil', 'Lemon juice', 'Avocado slices'] },
-    dinner:    { name: 'Baked Salmon & Veggies',         calories: 520, protein: 46, carbs: 22, fat: 18, image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&q=80', items: ['200g salmon fillet', 'Roasted broccoli', 'Sweet potato', 'Olive oil', 'Garlic & herbs', 'Lemon zest'] },
-    snack1:    { name: 'Apple with Almond Butter',        calories: 190, protein: 5,  carbs: 22, fat: 9,  image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=600&q=80', items: ['1 medium apple', '1.5 tbsp almond butter'] },
-    snack2:    { name: 'Hard-Boiled Eggs & Cucumber',    calories: 160, protein: 14, carbs: 4,  fat: 10, image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=600&q=80', items: ['2 hard-boiled eggs', '1 cup sliced cucumber', 'Pinch of salt & pepper'] },
-  },
-  'muscle gain': {
-    goal: 'muscle gain',
-    breakfast: { name: 'Protein Oats & Banana',          calories: 580, protein: 38, carbs: 72, fat: 12, image: 'https://images.unsplash.com/photo-1517093157656-b9eccef91cb1?w=600&q=80', items: ['1 cup oats', '1 scoop whey protein', '1 banana', '1 tbsp peanut butter', '250ml whole milk', 'Mixed berries'] },
-    lunch:     { name: 'Beef Rice Bowl',                  calories: 720, protein: 52, carbs: 75, fat: 20, image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80', items: ['200g ground beef', '1.5 cups white rice', 'Black beans', 'Corn', 'Cheese', 'Sour cream'] },
-    dinner:    { name: 'Steak & Potato Mash',             calories: 780, protein: 60, carbs: 60, fat: 24, image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', items: ['250g sirloin steak', 'Large baked potato', '2 tbsp butter', 'Steamed broccoli', 'Side salad'] },
-    snack1:    { name: 'Cottage Cheese & Pineapple',     calories: 250, protein: 22, carbs: 28, fat: 5,  image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&q=80', items: ['200g cottage cheese', 'Fresh pineapple chunks', '1 tsp honey'] },
-    snack2:    { name: 'Mass Gainer Shake',               calories: 480, protein: 40, carbs: 55, fat: 10, image: 'https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=600&q=80', items: ['2 scoops mass gainer', '300ml whole milk', '1 banana', '1 tbsp oats'] },
-  },
-  'maintenance': {
-    goal: 'maintenance',
-    breakfast: { name: 'Avocado Toast & Eggs',           calories: 420, protein: 22, carbs: 38, fat: 18, image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80', items: ['2 slices whole-grain toast', '1 avocado', '2 poached eggs', 'Cherry tomatoes', 'Everything bagel seasoning'] },
-    lunch:     { name: 'Turkey Wrap',                     calories: 510, protein: 36, carbs: 48, fat: 16, image: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=600&q=80', items: ['Whole wheat wrap', '150g turkey breast', 'Lettuce & tomato', 'Hummus', 'Cucumber strips'] },
-    dinner:    { name: 'Chicken Stir-fry with Noodles',  calories: 580, protein: 40, carbs: 58, fat: 16, image: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=600&q=80', items: ['180g chicken breast', 'Egg noodles', 'Bell peppers', 'Snap peas', 'Soy sauce', 'Sesame oil'] },
-    snack1:    { name: 'Mixed Nuts & Dried Fruit',        calories: 200, protein: 5,  carbs: 18, fat: 13, image: 'https://images.unsplash.com/photo-1448043552756-e747b7a2b2b8?w=600&q=80', items: ['30g mixed nuts', '20g dried cranberries'] },
-    snack2:    { name: 'Protein Smoothie',                calories: 280, protein: 24, carbs: 30, fat: 6,  image: 'https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=600&q=80', items: ['1 scoop vanilla protein', '200ml almond milk', '1/2 banana', '1 tbsp flaxseed'] },
-  },
+const toNumber = (value, fallback = 0) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const match = value.match(/-?\d+(\.\d+)?/);
+    if (match) {
+      const parsed = Number(match[0]);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 };
+
+const normalizeMeal = (meal, fallbackName = 'Meal') => {
+  if (!meal) return null;
+  const calories = toNumber(meal.calories, 0);
+  const protein = toNumber(meal.protein, calories ? Math.round((calories * 0.30) / 4) : 0);
+  const carbs = toNumber(meal.carbs, calories ? Math.round((calories * 0.45) / 4) : 0);
+  const fat = toNumber(meal.fat, calories ? Math.round((calories * 0.25) / 9) : 0);
+  return {
+    ...meal,
+    name: meal.name || fallbackName,
+    calories,
+    protein,
+    carbs,
+    fat,
+    items: Array.isArray(meal.items) ? meal.items : [],
+  };
+};
+
+const normalizeDietPlan = (rawPlan, fallbackGoal = 'fat loss') => {
+  if (!rawPlan) return null;
+
+  const plan = { ...rawPlan };
+  const legacyMeals = Array.isArray(plan.meals) ? plan.meals : [];
+  const fromIndex = (idx) => (legacyMeals[idx] ? legacyMeals[idx] : null);
+  const mergeMealShape = (meal) => {
+    if (!meal) return null;
+    const macros = meal.macros || {};
+    return {
+      ...meal,
+      name: meal.name || meal.title || meal.mealName,
+      items: meal.items || meal.foods || meal.ingredients || [],
+      calories: meal.calories ?? meal.kcal ?? meal.energy,
+      protein: meal.protein ?? macros.protein,
+      carbs: meal.carbs ?? macros.carbs,
+      fat: meal.fat ?? macros.fat,
+    };
+  };
+  const legacyByType = Object.fromEntries(
+    legacyMeals
+      .filter((m) => m && (m.type || m.mealType || m.slot))
+      .map((m) => [String(m.type || m.mealType || m.slot).toLowerCase(), m])
+  );
+
+  const breakfast = normalizeMeal(mergeMealShape(plan.breakfast || legacyByType.breakfast || fromIndex(0)), 'Breakfast');
+  const lunch = normalizeMeal(mergeMealShape(plan.lunch || legacyByType.lunch || fromIndex(1)), 'Lunch');
+  const dinner = normalizeMeal(mergeMealShape(plan.dinner || legacyByType.dinner || fromIndex(2)), 'Dinner');
+  const snack1 = normalizeMeal(mergeMealShape(plan.snack1 || plan.snacks || legacyByType.snack1 || legacyByType.snack || fromIndex(3)), 'Snack 1');
+  const snack2 = normalizeMeal(mergeMealShape(plan.snack2 || legacyByType.snack2 || fromIndex(4)), 'Snack 2');
+
+  const normalized = {
+    ...plan,
+    goal: (plan.goal || fallbackGoal || 'fat loss').toLowerCase(),
+    breakfast,
+    lunch,
+    dinner,
+    snack1,
+    snack2,
+  };
+
+  const totalsFromMeals = {
+    calories: MEAL_SLOTS.reduce((s, slot) => s + (normalized[slot]?.calories || 0), 0),
+    protein: MEAL_SLOTS.reduce((s, slot) => s + (normalized[slot]?.protein || 0), 0),
+    carbs: MEAL_SLOTS.reduce((s, slot) => s + (normalized[slot]?.carbs || 0), 0),
+    fat: MEAL_SLOTS.reduce((s, slot) => s + (normalized[slot]?.fat || 0), 0),
+  };
+
+  const summary = plan.summary || plan.nutritionSummary || {};
+  normalized.calories = totalsFromMeals.calories || toNumber(plan.calories, toNumber(summary.calories, 0));
+  normalized.protein = totalsFromMeals.protein || toNumber(plan.protein, toNumber(summary.protein, 0));
+  normalized.carbs = totalsFromMeals.carbs || toNumber(plan.carbs, toNumber(summary.carbs, 0));
+  normalized.fat = totalsFromMeals.fat || toNumber(plan.fat, toNumber(summary.fat, 0));
+  normalized.planName = plan.planName || `${normalized.goal} protocol`;
+
+  return normalized;
+};
+
+
 
 const NUTRITION_TIPS = [
   { icon: <Shield className="w-5 h-5" />,    color: 'text-neonCyan',    bg: 'bg-neonCyan/10',    border: 'border-neonCyan/20',    tip: 'Eat protein with every meal', detail: 'Target 0.8–1g of protein per lb of bodyweight daily to preserve and build muscle mass.' },
@@ -209,8 +270,8 @@ const MealCard = ({ type, data, index }) => {
       initial={{ opacity: 0, y: 30, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: index * 0.10, type: 'spring', stiffness: 280, damping: 26 }}
-      className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 cursor-pointer ${cfg.border} hover:shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_30px_${cfg.glowColor}]`}
-      style={{ background: 'rgba(10,10,10,0.9)', backdropFilter: 'blur(14px)' }}
+      className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 cursor-pointer ${cfg.border}`}
+      style={{ background: 'rgba(10,10,10,0.9)', backdropFilter: 'blur(14px)', boxShadow: `0 20px 60px rgba(0,0,0,0.6),0 0 30px ${cfg.glowColor}` }}
       onClick={() => setExpanded((p) => !p)}
     >
       {/* Thumbnail */}
@@ -364,24 +425,41 @@ export const Diet = () => {
         const token  = localStorage.getItem('token');
         const userId = localStorage.getItem('userId');
         if (token && userId) {
-          const res  = await fetch(`http://localhost:5000/api/diet/user/${userId}`, {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+          const res  = await fetch(`${API_URL}/api/diet/user/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
           if (res.ok && data.length > 0) {
-            const latest = data[0];
-            setDietPlan(latest);
-            if (latest.goal) {
-              const matched = GOAL_OPTIONS.find((g) => g.value === latest.goal);
+            const normalizedCandidates = data.map((plan) => normalizeDietPlan(plan, goal));
+            const latestValid = normalizedCandidates.find((p) => toNumber(p?.calories, 0) > 0);
+            const selectedPlan = latestValid || normalizedCandidates[0];
+            setDietPlan(selectedPlan);
+            if (selectedPlan?.goal) {
+              const matched = GOAL_OPTIONS.find((g) => g.value === selectedPlan.goal);
               if (matched) setGoal(matched.value);
+            }
+            // Self-heal: if latest persisted plan is invalid/zero, regenerate immediately.
+            if (!latestValid) {
+              const regenRes = await fetch(`${API_URL}/api/diet/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ goal }),
+              });
+              if (regenRes.ok) {
+                const regenData = await regenRes.json();
+                const normalized = normalizeDietPlan(regenData, goal);
+                if (toNumber(normalized?.calories, 0) > 0) {
+                  setDietPlan(normalized);
+                  setSaved(false);
+                }
+              }
             }
             setFetchLoading(false);
             return;
           }
         }
-      } catch { /* fall through to demo */ }
-      // Show demo plan immediately
-      setDietPlan(DEMO_PLANS['fat loss']);
+      } catch { console.error('Failed to fetch initial diet plan'); }
       setFetchLoading(false);
     };
     fetchPlan();
@@ -393,52 +471,48 @@ export const Diet = () => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await fetch('http://localhost:5000/api/diet/generate', {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const res = await fetch(`${API_URL}/api/diet/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ goal }),
         });
         const data = await res.json();
         if (res.ok) { 
-          setDietPlan(data); 
+          setDietPlan(normalizeDietPlan(data, goal)); 
           setLoading(false); 
-          setSaved(true); 
+          setSaved(false); 
           return; 
         }
       }
-    } catch (err) { console.error(err); }
-    // Simulate AI generation with demo data
-    await new Promise((r) => setTimeout(r, 1800));
-    setDietPlan({ ...DEMO_PLANS[goal], _generated: true, _isDemo: true });
+    } catch (err) { console.error(err); alert('Failed to connect to AI Nutrition Engine'); }
     setLoading(false);
-    setSaved(false);
   };
 
   const saveCurrentPlan = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !dietPlan) return;
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      // The backend /generate endpoint also performs the save. 
-      // We call it with the current goal to persist it.
-      const res = await fetch('http://localhost:5000/api/diet/generate', {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/diet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ goal }),
+        body: JSON.stringify(dietPlan),
       });
       if (res.ok) {
         const data = await res.json();
-        setDietPlan(data);
+        setDietPlan(normalizeDietPlan(data, goal));
         setSaved(true);
       }
     } catch (err) { console.error(err); }
     finally { setSaving(false); }
   };
 
-  const totalCalories = dietPlan ? MEAL_SLOTS.reduce((s, slot) => s + (dietPlan[slot]?.calories || 0), 0) : 0;
-  const totalProtein  = dietPlan ? MEAL_SLOTS.reduce((s, slot) => s + (dietPlan[slot]?.protein  || Math.round(((dietPlan[slot]?.calories || 0) * 0.30) / 4)), 0) : 0;
-  const totalCarbs    = dietPlan ? MEAL_SLOTS.reduce((s, slot) => s + (dietPlan[slot]?.carbs    || Math.round(((dietPlan[slot]?.calories || 0) * 0.45) / 4)), 0) : 0;
-  const totalFat      = dietPlan ? MEAL_SLOTS.reduce((s, slot) => s + (dietPlan[slot]?.fat      || Math.round(((dietPlan[slot]?.calories || 0) * 0.25) / 9)), 0) : 0;
+  const totalCalories = dietPlan ? (dietPlan.calories || 0) : 0;
+  const totalProtein  = dietPlan ? (dietPlan.protein || 0) : 0;
+  const totalCarbs    = dietPlan ? (dietPlan.carbs || 0) : 0;
+  const totalFat      = dietPlan ? (dietPlan.fat || 0) : 0;
 
   const activeMeals         = MEAL_SLOTS.filter((slot) => dietPlan && dietPlan[slot]);
   const selectedGoalConfig  = GOAL_OPTIONS.find((g) => g.value === goal) || GOAL_OPTIONS[0];
@@ -594,6 +668,33 @@ export const Diet = () => {
                 </motion.div>
               )}
 
+              {!dietPlan && !fetchLoading && (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center p-8 md:p-16 text-center border border-white/5 bg-black/40 rounded-[2.5rem] h-full shadow-2xl backdrop-blur-xl"
+                >
+                  <div className="w-24 h-24 mb-6 rounded-[2rem] bg-neonGreen/10 border border-neonGreen/30 flex items-center justify-center relative group">
+                    <div className="absolute inset-0 bg-neonGreen/20 blur-xl rounded-full scale-150 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    <Salad className="w-10 h-10 text-neonGreen relative z-10" />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-black text-white font-syncopate uppercase tracking-widest mb-4">Awaiting Synthesis</h3>
+                  <p className="text-gray-400 font-light text-base md:text-lg max-w-md mx-auto mb-10 leading-relaxed">
+                    Your biological engine requires specific parameters. Generate a nutrition protocol to initialize optimization.
+                  </p>
+                  <motion.button
+                    onClick={generateDiet}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-8 py-4 rounded-xl font-bold uppercase tracking-widest text-sm text-black bg-gradient-to-r from-neonGreen to-neonCyan shadow-[0_0_30px_rgba(57,255,20,0.3)] transition-all flex items-center gap-3"
+                  >
+                    <Zap className="w-4 h-4" /> Initialize Engine
+                  </motion.button>
+                </motion.div>
+              )}
+
               {dietPlan && !fetchLoading && (
                 <motion.div
                   key={dietPlan._id || `plan-${goal}`}
@@ -613,7 +714,7 @@ export const Diet = () => {
                         <span className="w-2 h-2 rounded-full bg-neonGreen shadow-[0_0_8px_rgba(57,255,20,0.8)] animate-pulse" />
                         <h2 className="text-neonGreen text-xs font-black uppercase tracking-widest font-heading">AI Nutrition Plan Active</h2>
                       </div>
-                      <p className="text-white font-bold text-lg capitalize font-heading">{dietPlan.goal || goal} Protocol</p>
+                      <p className="text-white font-bold text-lg capitalize font-heading">{dietPlan.planName || `${dietPlan.goal || goal} Protocol`}</p>
                       <p className="text-gray-500 text-xs mt-0.5">{activeMeals.length} meals · {totalCalories} kcal total</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">

@@ -1,6 +1,6 @@
 import Workout from '../models/Workout.js';
-import Exercise from '../models/Exercise.js';
 import User from '../models/User.js';
+import { EXERCISE_DATABASE } from '../../frontend/src/data/exerciseData.js';
 
 export const getMyWorkouts = async (req, res) => {
   try {
@@ -36,80 +36,84 @@ export const generateWorkout = async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Use requested params or fallback to user profile
-    const fitnessGoal = req.body.goal || user.fitnessGoal || 'general fitness';
-    const experienceLevel = req.body.level || user.experienceLevel || 'beginner';
+    const goal = (req.body.goal || user.fitnessGoal || 'fat loss').toLowerCase();
+    const level = (req.body.level || user.experienceLevel || 'beginner').toLowerCase();
+    const equipment = (req.body.equipment || 'Any').toLowerCase();
+    const workoutDuration = Number(req.body.workoutDuration || 30);
 
-    // Advanced Realistic Generation Engine
-    let warmupExercises = [];
-    let mainExercises = [];
-    let finisherExercises = [];
+    const shuffle = (arr) => [...arr].sort(() => 0.5 - Math.random());
+    const setsByLevel = { beginner: 3, intermediate: 4, advanced: 5 };
+    const categoryOrderByGoal = {
+      'fat loss': ['Cardio', 'Full Body', 'Legs', 'Core', 'Arms', 'Back', 'Chest'],
+      'muscle gain': ['Chest', 'Back', 'Legs', 'Arms', 'Core', 'Full Body', 'Cardio'],
+      endurance: ['Cardio', 'Full Body', 'Core', 'Legs', 'Back', 'Arms', 'Chest'],
+    };
 
-    // Core mapping dictionaries
-    const cardioDB = [
-      { name: 'Jump Rope', sets: '1', reps: '3 mins', muscleGroup: 'full body' },
-      { name: 'Jumping Jacks', sets: '2', reps: '30s', muscleGroup: 'cardio' },
-      { name: 'High Knees', sets: '2', reps: '30s', muscleGroup: 'cardio' },
-      { name: 'Dynamic Stretching', sets: '1', reps: '5 mins', muscleGroup: 'full body' },
-      { name: 'Arm Circles', sets: '2', reps: '15 forward, 15 back', muscleGroup: 'shoulders' }
-    ];
-
-    const strengthDB = [
-      { name: 'Pushups', sets: '3', reps: '10-15', muscleGroup: 'chest' },
-      { name: 'Pull-ups', sets: '3', reps: '8-12', muscleGroup: 'back' },
-      { name: 'Squats', sets: '4', reps: '15', muscleGroup: 'legs' },
-      { name: 'Lunges', sets: '3', reps: '12 per leg', muscleGroup: 'legs' },
-      { name: 'Bench Press', sets: '4', reps: '8-10', muscleGroup: 'chest' },
-      { name: 'Deadlift', sets: '4', reps: '6-8', muscleGroup: 'back' },
-      { name: 'Bicep Curls', sets: '3', reps: '12', muscleGroup: 'arms' },
-      { name: 'Tricep Dips', sets: '3', reps: '12', muscleGroup: 'arms' }
-    ];
-
-    const coreDB = [
-      { name: 'Plank', sets: '3', reps: '45s', muscleGroup: 'core' },
-      { name: 'Russian Twists', sets: '3', reps: '20', muscleGroup: 'core' },
-      { name: 'Mountain Climbers', sets: '3', reps: '30s', muscleGroup: 'core' },
-      { name: 'Leg Raises', sets: '3', reps: '15', muscleGroup: 'core' }
-    ];
-
-    const finisherDB = [
-      { name: 'Burpees', sets: '3', reps: '45s AMRAP', muscleGroup: 'full body' },
-      { name: 'Kettlebell Swings', sets: '3', reps: '20', muscleGroup: 'full body' },
-      { name: 'Sprint Intervals', sets: '4', reps: '20s on, 10s off', muscleGroup: 'cardio' },
-      { name: 'Box Jumps', sets: '3', reps: '10', muscleGroup: 'legs' }
-    ];
-
-    const shuffle = (array) => array.sort(() => 0.5 - Math.random());
-
-    // 1. WARMUP (2 exercises)
-    warmupExercises = shuffle([...cardioDB]).slice(0, 2).map(ex => ({ ...ex, phase: 'Warmup', difficulty: experienceLevel, completed: false }));
-
-    // 2. MAIN WORKOUT (3-5 exercises depending on goal/level)
-    let mainSelection = [];
-    if (fitnessGoal === 'fat loss' || fitnessGoal === 'endurance') {
-      mainSelection = shuffle([...strengthDB.slice(0, 4), ...coreDB]).slice(0, 4);
-    } else { // Muscle gain / Strength / General
-      mainSelection = shuffle([...strengthDB]).slice(0, 5);
-    }
-    mainExercises = mainSelection.map(ex => ({ ...ex, phase: 'Main Workout', difficulty: experienceLevel, completed: false }));
-
-    // 3. FINISHER (1-2 exercises)
-    const finisherCount = experienceLevel === 'advanced' ? 2 : 1;
-    finisherExercises = shuffle([...finisherDB]).slice(0, finisherCount).map(ex => ({ ...ex, phase: 'Finisher', difficulty: experienceLevel, completed: false }));
-
-    // Compile Plan
-    const selectedExercises = [...warmupExercises, ...mainExercises, ...finisherExercises];
-
-    const workout = await Workout.create({
-      userId: req.user._id,
-      difficulty: experienceLevel,
-      exercises: selectedExercises,
-      date: Date.now()
+    let pool = EXERCISE_DATABASE.filter((ex) => {
+      const exLevel = (ex.level || ex.difficulty || '').toLowerCase();
+      return exLevel === level;
     });
 
-    res.status(201).json(workout);
+    if (equipment !== 'any') {
+      pool = pool.filter((ex) => (ex.equipment || '').toLowerCase() === equipment);
+    }
+    if (!pool.length) {
+      pool = EXERCISE_DATABASE.filter((ex) => (ex.level || ex.difficulty || '').toLowerCase() === level);
+    }
+
+    const targetExerciseCount = Math.max(5, Math.min(12, Math.round(workoutDuration / 5)));
+    const orderedCategories = categoryOrderByGoal[goal] || categoryOrderByGoal['fat loss'];
+    const selectedIds = new Set();
+    const selected = [];
+
+    // Phase 1: Structured Selection (Compound movements first)
+    for (let i = 0; i < targetExerciseCount; i += 1) {
+      const category = orderedCategories[i % orderedCategories.length];
+      const choices = pool.filter((ex) => (ex.category || '').toLowerCase() === category.toLowerCase() && !selectedIds.has(ex.id));
+      
+      if (choices.length > 0) {
+        const picked = choices[Math.floor(Math.random() * choices.length)];
+        selectedIds.add(picked.id);
+        selected.push(picked);
+      }
+    }
+
+    // Phase 2: Padding (Ensure we meet the duration requirement)
+    const paddingPool = shuffle(pool.filter((ex) => !selectedIds.has(ex.id)));
+    while (selected.length < targetExerciseCount && paddingPool.length) {
+      selected.push(paddingPool.shift());
+    }
+
+    const selectedExercises = selected.map((ex) => ({
+      ...ex,
+      id: ex.id,
+      name: ex.title || ex.name,
+      title: ex.title || ex.name,
+      sets: setsByLevel[level] || 3,
+      reps: ex.reps || '10-12',
+      duration: ex.duration || '3–4 min',
+      youtubeUrl: ex.videoUrl || `https://www.youtube.com/watch?v=${ex.youtubeId}`,
+      youtubeId: ex.youtubeId,
+      thumbnail: ex.thumbnail || `https://img.youtube.com/vi/${ex.youtubeId}/maxresdefault.jpg`,
+      thumbnailFallback: ex.thumbnailFallback || `https://img.youtube.com/vi/${ex.youtubeId}/hqdefault.jpg`,
+      muscleGroup: ex.musclesTargeted || ex.muscle || ex.category,
+      musclesTargeted: ex.musclesTargeted || ex.muscle || ex.category,
+      difficulty: level,
+      level: level,
+      completed: false,
+    }));
+
+    res.status(200).json({
+      plan: {
+        goal,
+        level,
+        workoutDuration,
+        equipment,
+        exercises: selectedExercises,
+      },
+    });
   } catch (error) {
-    console.error(error);
+    console.error('Workout Generation Error:', error);
     res.status(500).json({ message: 'Server error generating workout' });
   }
 };

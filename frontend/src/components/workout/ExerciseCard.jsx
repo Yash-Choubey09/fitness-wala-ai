@@ -5,9 +5,9 @@ import { VideoModal } from './VideoModal';
 import { useCardTilt } from '../../hooks/useCardTilt';
 
 const difficultyConfig = {
-  Beginner:     { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', dots: 1 },
-  Intermediate: { color: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/30',   dots: 2 },
-  Advanced:     { color: 'text-red-400',      bg: 'bg-red-400/10',     border: 'border-red-400/30',     dots: 3 },
+  beginner:     { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', dots: 1, label: 'Beginner' },
+  intermediate: { color: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/30',   dots: 2, label: 'Intermediate' },
+  advanced:     { color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/30',     dots: 3, label: 'Advanced' },
 };
 
 // Fallback colours if image doesn't load
@@ -18,14 +18,30 @@ const FALLBACK_GRADIENTS = [
   'from-amber-500/20 to-orange-900/40',
 ];
 
+const getYouTubeId = (exercise) => {
+  if (exercise.youtubeId) return exercise.youtubeId;
+  if (!exercise.videoUrl) return '';
+  const match = exercise.videoUrl.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return match?.[1] || '';
+};
+
 export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRecommended }) => {
   const [imgError, setImgError] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState(exercise.thumbnail);
   const [modalOpen, setModalOpen] = useState(false);
-  const diff = difficultyConfig[exercise.difficulty] || difficultyConfig.Beginner;
+  const diff = difficultyConfig[(exercise.level || 'beginner').toLowerCase()] || difficultyConfig.beginner;
   const fallback = FALLBACK_GRADIENTS[index % FALLBACK_GRADIENTS.length];
   const { ref: tiltRef, handlers: tiltHandlers } = useCardTilt({ max: 8, scale: 1.02 });
 
-  const thumbnailSrc = exercise.thumbnail || exercise.gifUrl;
+  const youtubeId = getYouTubeId(exercise);
+
+  const handleThumbnailError = () => {
+    if (thumbnailUrl === exercise.thumbnail && exercise.thumbnailFallback) {
+      setThumbnailUrl(exercise.thumbnailFallback);
+    } else {
+      setImgError(true);
+    }
+  };
 
   return (
     <>
@@ -34,7 +50,7 @@ export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRec
         {...tiltHandlers}
         layout
         onClick={onClick}
-        className={`exercise-card opacity-0 translate-y-8 tilt-card group relative cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 ${
+        className={`exercise-card tilt-card workout-card group relative cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 ${
           isExpanded
             ? 'border-neonCyan/40 shadow-[0_0_40px_rgba(0,224,255,0.1)] z-30'
             : 'border-white/8 hover:border-neonCyan/30 hover:z-20 hover:shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_20px_rgba(0,224,255,0.08)]'
@@ -43,64 +59,65 @@ export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRec
         data-cursor="hover"
       >
         {/* ── Thumbnail / GIF Preview ───────────────────────────── */}
-        <div className={`relative overflow-hidden bg-black transition-all duration-500 ${isExpanded ? 'h-56' : 'h-44'}`}>
+        <div className={`relative overflow-hidden bg-black transition-all duration-500 ${isExpanded ? 'h-56' : 'h-48'}`}>
           {/* Gradient overlay always present */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent z-10 pointer-events-none" />
 
           {/* Image / fallback gradient */}
-          {!imgError && thumbnailSrc ? (
+          {!imgError && thumbnailUrl ? (
             <img
-              src={thumbnailSrc}
-              alt={exercise.name}
-              onError={() => setImgError(true)}
-              className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
+              src={thumbnailUrl}
+              alt={exercise.title}
+              onError={handleThumbnailError}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-1000"
             />
           ) : (
-            // Stylised gradient fallback — never shows "content unavailable"
+            // Stylised gradient fallback
             <div className={`w-full h-full bg-gradient-to-br ${fallback} flex items-center justify-center`}>
-              <div className="text-6xl opacity-30 select-none">💪</div>
+              <div className="text-6xl opacity-30 select-none animate-pulse">💪</div>
             </div>
           )}
 
           {/* Muscle group badge */}
           <div className="absolute top-3 left-3 z-20">
-            <span className="px-2.5 py-1 bg-black/70 backdrop-blur-md text-neonCyan text-[9px] rounded-lg font-bold border border-neonCyan/25 uppercase tracking-widest">
-              {exercise.muscle}
+            <span className="px-3 py-1 bg-black/80 backdrop-blur-md text-neonCyan text-[10px] rounded-lg font-black border border-neonCyan/30 uppercase tracking-widest shadow-lg">
+              {exercise.musclesTargeted}
             </span>
           </div>
 
           {/* Watch Demo button — stop propagation so it doesn't expand the card */}
-          {exercise.youtubeId && (
+          {youtubeId && (
             <button
-              onClick={(e) => { e.stopPropagation(); setModalOpen(true); }}
-              className="play-btn-pulse absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2.5 py-1 bg-red-600/80 hover:bg-red-600 rounded-lg text-white text-[9px] font-bold uppercase tracking-widest transition-all border border-red-400/40 shadow-[0_0_15px_rgba(255,0,0,0.3)]"
+              onClick={(e) => { 
+                e.preventDefault();
+                e.stopPropagation(); 
+                setModalOpen(true); 
+              }}
+              className="play-btn-pulse absolute top-3 right-3 z-30 flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-white text-[10px] font-black uppercase tracking-widest transition-all border border-red-400/40 shadow-[0_0_20px_rgba(255,0,0,0.4)] active:scale-90"
             >
-              <Play className="w-2.5 h-2.5 fill-white" />
+              <Play className="w-3 h-3 fill-white" />
               Watch
             </button>
           )}
 
-          {/* Expand indicator / AI Badge */}
-          {isAiRecommended ? (
-            <div className="absolute top-3 right-[85px] z-20 flex items-center gap-1.5 px-2.5 py-1 bg-neonGreen/20 backdrop-blur-md rounded-lg text-neonGreen text-[9px] font-bold uppercase tracking-widest border border-neonGreen/30 shadow-[0_0_15px_rgba(57,255,20,0.2)]">
+          {/* AI Badge fallback if not watching */}
+          {isAiRecommended && !youtubeId && (
+            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2.5 py-1 bg-neonGreen/20 backdrop-blur-md rounded-lg text-neonGreen text-[9px] font-bold uppercase tracking-widest border border-neonGreen/30">
               <Zap className="w-2.5 h-2.5 fill-neonGreen" />
-              AI Match
+              AI
             </div>
-          ) : (
-            <motion.div
-              className={`absolute top-3 right-${exercise.youtubeId ? '[85px]' : '3'} z-20 w-7 h-7 rounded-full bg-black/60 border border-white/20 flex items-center justify-center`}
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ChevronDown className="w-3.5 h-3.5 text-white" />
-            </motion.div>
           )}
 
-          {/* Exercise name overlaid on thumbnail */}
-          <div className="absolute bottom-3 left-3 right-3 z-20">
-            <h3 className="text-white font-bold font-heading uppercase tracking-wide text-base leading-tight group-hover:text-neonCyan transition-colors truncate">
-              {exercise.name}
+          {/* Exercise name overlaid on thumbnail with backdrop blur for legibility */}
+          <div className="absolute bottom-4 left-4 right-4 z-20">
+            <h3 className="text-white font-black font-heading uppercase tracking-widest text-lg leading-tight group-hover:text-neonCyan group-hover:text-glow-cyan transition-all duration-500">
+              {exercise.title || exercise.name || 'Strength Exercise'}
             </h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-tighter mt-1 font-medium">
+              {exercise.equipment || 'No Equipment'} · {exercise.intensity || 'Medium'} Intensity
+            </p>
           </div>
         </div>
 
@@ -114,7 +131,7 @@ export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRec
                   <span key={i} className={`w-1 h-2.5 rounded-full ${i < diff.dots ? diff.color.replace('text-', 'bg-') : 'bg-white/15'}`} />
                 ))}
               </span>
-              {exercise.difficulty}
+              {diff.label}
             </span>
             <div className="flex items-center gap-1.5 text-gray-500 text-[10px] uppercase tracking-widest font-medium">
               <Clock className="w-3 h-3" />
@@ -125,9 +142,9 @@ export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRec
           {/* Stats mini-grid */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { icon: <Zap className="w-3.5 h-3.5" />, label: 'Sets', value: exercise.sets },
-              { icon: <Target className="w-3.5 h-3.5" />, label: 'Reps', value: exercise.reps },
-              { icon: <BarChart3 className="w-3.5 h-3.5" />, label: 'Cal', value: exercise.calories },
+              { icon: <Zap className="w-3.5 h-3.5" />, label: 'Sets', value: exercise.sets || '3' },
+              { icon: <Target className="w-3.5 h-3.5" />, label: 'Reps', value: exercise.reps || '12' },
+              { icon: <BarChart3 className="w-3.5 h-3.5" />, label: 'Cal', value: exercise.caloriesBurned || exercise.calories || '~50 kcal' },
             ].map(({ icon, label, value }) => (
               <div
                 key={label}
@@ -157,7 +174,7 @@ export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRec
 
                 <div className="space-y-2">
                   <p className="text-xs text-neonCyan font-bold uppercase tracking-widest mb-2">Pro Tips</p>
-                  {exercise.tips.map((tip, i) => (
+                  {(exercise.tips || []).map((tip, i) => (
                     <div key={i} className="flex items-start gap-2.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-neonCyan mt-1.5 shrink-0" />
                       <span className="text-gray-400 text-sm font-light">{tip}</span>
@@ -177,7 +194,7 @@ export const ExerciseCard = ({ exercise, isExpanded, onClick, index = 0, isAiRec
                 </div>
 
                 {/* Watch Demo CTA at bottom of expanded */}
-                {exercise.youtubeId && (
+                {youtubeId && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setModalOpen(true); }}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-400 hover:text-red-300 text-sm font-bold uppercase tracking-widest transition-all"

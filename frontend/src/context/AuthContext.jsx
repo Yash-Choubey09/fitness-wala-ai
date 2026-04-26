@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 
 const AuthContext = createContext(null);
 
-const API = 'http://localhost:5000';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser]               = useState(null);
@@ -59,25 +59,26 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ----- Update profile (PATCH-like) -----
+  // ----- Update profile (PUT) -----
   const updateProfile = useCallback(async (fields) => {
     const token = localStorage.getItem('token');
-    if (!token) return null;
+    if (!token) return { success: false, error: 'Session expired' };
     try {
       const res = await fetch(`${API}/api/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(fields)
       });
+      const data = await res.json();
       if (res.ok) {
-        const updatedUser = await res.json();
-        setUser(updatedUser);
-        return updatedUser;
+        setUser(data);
+        return { success: true, data };
       }
+      return { success: false, error: data.message || 'Update failed' };
     } catch (err) {
       console.error('Profile update failed:', err);
+      return { success: false, error: 'Network error. Check connection.' };
     }
-    return null;
   }, []);
 
   return (

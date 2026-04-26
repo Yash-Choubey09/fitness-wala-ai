@@ -1,125 +1,111 @@
 import { motion } from 'framer-motion';
-import { Card } from '../ui/Card';
-import { Brain, Dumbbell, Apple } from 'lucide-react';
-import { useRef } from 'react';
-import { useScrollAnimation } from '../../hooks/useScrollAnimation';
-import { useCardTilt } from '../../hooks/useCardTilt';
+import { Brain, Dumbbell, Apple, ArrowRight } from 'lucide-react';
 
 const steps = [
-  { 
-    title: 'Biometric Analysis', 
-    desc: 'Input your raw telemetry and define your absolute physical targets.',
-    icon: <Brain className="w-10 h-10 text-neonCyan" />,
+  {
     num: '01',
-    shadow: 'shadow-[0_0_15px_rgba(0,240,255,0.2)]',
-    hoverBorder: 'group-hover:border-neonCyan/50',
-    hoverShadow: 'group-hover:shadow-[0_0_30px_rgba(0,240,255,0.4)]'
+    title: 'Set Your Profile',
+    desc: 'Input your age, weight, height, fitness goal, and experience level. One-time setup that powers everything.',
+    icon: Brain,
+    color: '#00E0FF',
   },
-  { 
-    title: 'Protocol Generation', 
-    desc: 'Our engine synthesizes hyper-personalized daily active routines.',
-    icon: <Dumbbell className="w-10 h-10 text-neonPurple" />,
+  {
     num: '02',
-    shadow: 'shadow-[0_0_15px_rgba(138,43,226,0.2)]',
-    hoverBorder: 'group-hover:border-neonPurple/50',
-    hoverShadow: 'group-hover:shadow-[0_0_30px_rgba(138,43,226,0.4)]'
+    title: 'Generate Protocols',
+    desc: 'Our engine builds hyper-personalized workout and nutrition plans optimized for your biological profile.',
+    icon: Dumbbell,
+    color: '#8A2BE2',
   },
-  { 
-    title: 'Nutritional Intelligence', 
-    desc: 'Receive exact macronutrient ratios optimized for your biological engine.',
-    icon: <Apple className="w-10 h-10 text-neonGreen" />,
+  {
     num: '03',
-    shadow: 'shadow-[0_0_15px_rgba(57,255,20,0.2)]',
-    hoverBorder: 'group-hover:border-neonGreen/50',
-    hoverShadow: 'group-hover:shadow-[0_0_30px_rgba(57,255,20,0.4)]'
-  }
+    title: 'Track & Evolve',
+    desc: 'Log your weekly activity, monitor weight progression, and refine with your AI coach — all in real time.',
+    icon: Apple,
+    color: '#39FF14',
+  },
 ];
 
-// ── Individual tiltable step card ─────────────────────────────────────────────
-const StepCard = ({ step }) => {
-  const { ref, handlers } = useCardTilt({ maxTilt: 7, scale: 1.03, speed: 0.35 });
-  return (
-    <div ref={ref} {...handlers} data-cursor="hover" className="tilt-card h-full cursor-pointer">
-      <Card
-        className={`group h-full flex flex-col items-center text-center p-10 bg-darkSecondary/80 backdrop-blur-xl border border-white/10 ${step.shadow} ${step.hoverShadow} ${step.hoverBorder} transition-colors duration-500 relative`}
-      >
-        <motion.div
-          className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 bg-black border border-white/10 ${step.shadow}`}
-          whileHover={{ scale: 1.1, rotate: 5 }}
-        >
-          {step.icon}
-        </motion.div>
-        <h3 className="text-2xl font-bold text-white mb-4 font-heading text-center uppercase tracking-wider">
-          {step.title}
-        </h3>
-        <p className="text-gray-400 font-light leading-relaxed text-lg">{step.desc}</p>
-        <div className="absolute top-4 right-4 text-white/5 font-black font-heading text-6xl pointer-events-none group-hover:text-white/10 transition-colors">
-          {step.num}
-        </div>
-      </Card>
-    </div>
-  );
-};
-
 export const HowItWorksSection = () => {
-  const lineRef  = useRef(null);
-  const cardsRef = useRef(null);
-
-  useScrollAnimation(lineRef,  'line-draw', { duration: 1.4, ease: 'power3.inOut' });
-  useScrollAnimation(cardsRef, 'stagger',   { stagger: 0.18, y: 50, duration: 0.85 });
-
   return (
-    <motion.section
-      className="py-32 relative flex flex-col items-center overflow-hidden bg-black border-t border-white/5 z-20 shadow-[0_-20px_50px_rgba(0,0,0,0.8)]"
-      initial={{ y: 100, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      viewport={{ once: true, margin: '-50px' }}
-      transition={{ duration: 0.8, ease: 'easeOut' }}
-    >
-      <div className="absolute inset-0 bg-[url('https://transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.05]" />
-      <div className="absolute top-1/2 left-1/4 w-[30rem] h-[30rem] bg-neonCyan/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/2" />
-      <div className="absolute top-1/2 right-1/4 w-[30rem] h-[30rem] bg-neonPurple/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/2" />
+    <section className="relative py-32 bg-black overflow-hidden border-t border-white/5">
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-full opacity-[0.06]"
+          style={{ background: 'radial-gradient(ellipse, #8A2BE2 0%, transparent 70%)', filter: 'blur(80px)' }} />
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 z-10 relative w-full">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+        {/* Header */}
         <div className="text-center mb-20">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 font-syncopate uppercase tracking-tight"
-          >
-            How Fitness Wala AI{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neonCyan via-neonPurple to-neonGreen drop-shadow-[0_0_10px_rgba(0,240,255,0.3)]">
-              Works
-            </span>
-          </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-gray-400 text-xl max-w-2xl mx-auto font-light"
+            className="text-xs uppercase tracking-[0.2em] text-gray-500 font-bold mb-4"
           >
-            A continuous loop of data-driven physical optimization.
+            Simple Process
           </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="text-5xl md:text-6xl font-black font-heading tracking-tighter text-white leading-[0.95]"
+          >
+            From zero to optimized.
+            <br />
+            <span className="text-white/30">In three steps.</span>
+          </motion.h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative px-4 md:px-0 mt-10">
-          {/* GSAP line-draw animation */}
-          <div
-            ref={lineRef}
-            className="hidden md:block absolute top-1/2 left-10 right-10 h-0.5 bg-gradient-to-r from-neonCyan via-neonPurple to-neonGreen opacity-20 -translate-y-1/2 -z-10"
-            style={{ transformOrigin: 'left center' }}
-          />
+        {/* Steps - horizontal timeline */}
+        <div className="relative">
+          {/* Connector line */}
+          <div className="hidden md:block absolute top-11 left-[calc(16.67%+24px)] right-[calc(16.67%+24px)] h-px"
+            style={{ background: 'linear-gradient(90deg, #00E0FF22, #8A2BE222, #39FF1422)' }} />
 
-          {/* GSAP stagger on cards container */}
-          <div ref={cardsRef} className="contents">
-            {steps.map((step, i) => (
-              <StepCard key={i} step={step} />
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-16">
+            {steps.map((step, i) => {
+              const Icon = step.icon;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 50 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.7, delay: i * 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative flex flex-col items-center md:items-start text-center md:text-left group"
+                >
+                  {/* Step icon circle */}
+                  <div className="relative mb-8">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-0 relative z-10 transition-transform duration-300 group-hover:scale-110"
+                      style={{ background: `${step.color}12`, border: `1px solid ${step.color}30` }}
+                    >
+                      <Icon className="w-6 h-6" style={{ color: step.color }} />
+                    </div>
+                    {/* Glow on hover */}
+                    <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-60 transition-opacity duration-500 blur-lg"
+                      style={{ background: step.color }} />
+                  </div>
+
+                  {/* Step number */}
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] mb-3" style={{ color: step.color }}>
+                    Step {step.num}
+                  </p>
+
+                  <h3 className="text-2xl font-black text-white font-heading tracking-tight mb-4 leading-tight">
+                    {step.title}
+                  </h3>
+                  <p className="text-gray-500 font-light leading-relaxed text-sm group-hover:text-gray-400 transition-colors">
+                    {step.desc}
+                  </p>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 };

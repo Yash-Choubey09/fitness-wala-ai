@@ -1,5 +1,6 @@
 import DietPlan from '../models/DietPlan.js';
 import User from '../models/User.js';
+import crypto from 'crypto';
 
 // ─── Image map per meal slot ───────────────────────────────────────────────────
 const MEAL_IMAGES = {
@@ -63,25 +64,135 @@ const MEAL_DB = {
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-const shuffle = (arr) => [...arr].sort(() => 0.5 - Math.random());
+const randBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-const pickMeal = (pool, dietPref) => {
+const toNum = (value, fallback = 0) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const match = value.match(/-?\d+(\.\d+)?/);
+    if (match) {
+      const parsed = Number(match[0]);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return fallback;
+};
+
+const normalizeMeal = (meal, fallbackName = 'Meal') => {
+  if (!meal) return null;
+  const calories = toNum(meal.calories, 0);
+  const protein = toNum(meal.protein, calories ? Math.round((calories * 0.30) / 4) : 0);
+  const carbs = toNum(meal.carbs, calories ? Math.round((calories * 0.45) / 4) : 0);
+  const fat = toNum(meal.fat, calories ? Math.round((calories * 0.25) / 9) : 0);
+  return {
+    ...meal,
+    name: meal.name || fallbackName,
+    items: Array.isArray(meal.items) ? meal.items : [],
+    calories,
+    protein,
+    carbs,
+    fat,
+  };
+};
+
+const serializeDietPlan = (rawPlan) => {
+  if (!rawPlan) return null;
+  const plan = rawPlan.toObject ? rawPlan.toObject() : { ...rawPlan };
+  const legacyMeals = Array.isArray(plan.meals) ? plan.meals : [];
+  const byType = Object.fromEntries(
+    legacyMeals
+      .filter((meal) => meal && (meal.type || meal.mealType || meal.slot))
+      .map((meal) => [String(meal.type || meal.mealType || meal.slot).toLowerCase(), meal])
+  );
+
+  const fromIndex = (idx) => (legacyMeals[idx] ? legacyMeals[idx] : null);
+  const mergeMealShape = (meal) => {
+    if (!meal) return null;
+    const macros = meal.macros || {};
+    return {
+      ...meal,
+      name: meal.name || meal.title || meal.mealName,
+      items: meal.items || meal.foods || meal.ingredients || [],
+      calories: meal.calories ?? meal.kcal ?? meal.energy,
+      protein: meal.protein ?? macros.protein,
+      carbs: meal.carbs ?? macros.carbs,
+      fat: meal.fat ?? macros.fat,
+    };
+  };
+
+  const breakfast = normalizeMeal(mergeMealShape(plan.breakfast || byType.breakfast || fromIndex(0)), 'Breakfast');
+  const lunch = normalizeMeal(mergeMealShape(plan.lunch || byType.lunch || fromIndex(1)), 'Lunch');
+  const dinner = normalizeMeal(mergeMealShape(plan.dinner || byType.dinner || fromIndex(2)), 'Dinner');
+  const snack1 = normalizeMeal(mergeMealShape(plan.snack1 || plan.snacks || byType.snack1 || byType.snack || fromIndex(3)), 'Snack 1');
+  const snack2 = normalizeMeal(mergeMealShape(plan.snack2 || byType.snack2 || fromIndex(4)), 'Snack 2');
+
+  const totals = [breakfast, lunch, dinner, snack1, snack2].filter(Boolean).reduce(
+    (acc, meal) => ({
+      calories: acc.calories + meal.calories,
+      protein: acc.protein + meal.protein,
+      carbs: acc.carbs + meal.carbs,
+      fat: acc.fat + meal.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  const summary = plan.summary || plan.nutritionSummary || {};
+
+  return {
+    ...plan,
+    goal: (plan.goal || 'maintenance').toLowerCase(),
+    breakfast,
+    lunch,
+    dinner,
+    snack1,
+    snack2,
+    calories: totals.calories || toNum(plan.calories, toNum(summary.calories, 0)),
+    protein: totals.protein || toNum(plan.protein, toNum(summary.protein, 0)),
+    carbs: totals.carbs || toNum(plan.carbs, toNum(summary.carbs, 0)),
+    fat: totals.fat || toNum(plan.fat, toNum(summary.fat, 0)),
+    planName: plan.planName || `${(plan.goal || 'maintenance').toLowerCase()} protocol`,
+  };
+};
+
+const filterByDietPref = (pool, dietPref) => {
   const filtered = pool.filter((m) => {
     if (dietPref === 'vegan') return m.tags.includes('vegan');
     if (dietPref === 'vegetarian') return m.tags.includes('veg');
-    return true; // non-veg: all meals
+    return true;
   });
-  const source = filtered.length > 0 ? filtered : pool; // fallback if filter too restrictive
-  return shuffle(source)[0];
+  return filtered.length ? filtered : pool;
 };
 
-const randBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pickMealSmart = ({ pool, dietPref, targetCalories, usedNames, recentNames }) => {
+  const candidates = filterByDietPref(pool, dietPref)
+    .filter((m) => !usedNames.has(m.name));
+
+  const source = candidates.length ? candidates : filterByDietPref(pool, dietPref);
+
+  const scored = source.map((meal) => {
+    const distancePenalty = Math.abs(meal.calories - targetCalories);
+    const recentPenalty = recentNames.has(meal.name) ? 180 : 0;
+    const microJitter = crypto.randomInt(0, 80);
+    const score = distancePenalty + recentPenalty + microJitter;
+    return { meal, score };
+  }).sort((a, b) => a.score - b.score);
+
+  // Pick from top few options to keep variety while staying near targets.
+  const top = scored.slice(0, Math.min(4, scored.length));
+  return top[crypto.randomInt(0, top.length)].meal;
+};
+
+const samePlanMeals = (a, b) => {
+  if (!a || !b) return false;
+  const slots = ['breakfast', 'lunch', 'dinner', 'snack1', 'snack2'];
+  return slots.every((slot) => (a[slot]?.name || '') === (b[slot]?.name || ''));
+};
 
 // ─── Controller ────────────────────────────────────────────────────────────────
 export const getMyDietPlan = async (req, res) => {
   try {
     const plans = await DietPlan.find({ userId: req.params.userId || req.user._id }).sort({ date: -1 });
-    res.json(plans);
+    res.json(plans.map(serializeDietPlan));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -96,6 +207,13 @@ export const generateDietPlan = async (req, res) => {
     // Use requested goal or fall back to user profile
     const rawGoal = (req.body.goal || user.fitnessGoal || 'general fitness').toLowerCase();
     const dietPref = (user.dietPreference || 'non vegetarian').toLowerCase();
+    const recentPlans = await DietPlan.find({ userId: req.user._id }).sort({ date: -1 }).limit(6);
+    const recentNames = new Set();
+    recentPlans.forEach((plan) => {
+      [plan.breakfast, plan.lunch, plan.dinner, plan.snack1, plan.snack2, plan.snacks]
+        .filter(Boolean)
+        .forEach((meal) => meal?.name && recentNames.add(meal.name));
+    });
 
     // ── Calorie target by goal ──
     let targetCalories;
@@ -113,37 +231,64 @@ export const generateDietPlan = async (req, res) => {
       normalizedGoal = 'maintenance';
     }
 
-    // ── Calorie weights per meal slot ──
-    // breakfast:15%, lunch:30%, dinner:30%, snack1:12%, snack2:13%
-    const weights = { breakfast: 0.15, lunch: 0.30, dinner: 0.30, snack1: 0.12, snack2: 0.13 };
-
-    const targetPerSlot = {
+    const weights = { breakfast: 0.20, lunch: 0.30, dinner: 0.30, snack1: 0.10, snack2: 0.10 };
+    const targets = {
       breakfast: Math.round(targetCalories * weights.breakfast),
-      lunch:     Math.round(targetCalories * weights.lunch),
-      dinner:    Math.round(targetCalories * weights.dinner),
-      snack1:    Math.round(targetCalories * weights.snack1),
-      snack2:    Math.round(targetCalories * weights.snack2),
+      lunch: Math.round(targetCalories * weights.lunch),
+      dinner: Math.round(targetCalories * weights.dinner),
+      snack1: Math.round(targetCalories * weights.snack1),
+      snack2: Math.round(targetCalories * weights.snack2),
     };
 
-    // ── Pick meals for each slot ──
-    // For fat loss → prefer lower-calorie options within the pool
-    // For muscle gain → prefer higher-calorie options
-    // We achieve this by sorting the pool before picking
-
-    const sortedPool = (pool, preferHigh) => {
-      const sorted = [...pool].sort((a, b) => preferHigh ? b.calories - a.calories : a.calories - b.calories);
-      return sorted;
+    const buildMealSelection = () => {
+      const usedNames = new Set();
+      const breakfastPick = pickMealSmart({
+        pool: MEAL_DB.breakfast,
+        dietPref,
+        targetCalories: targets.breakfast,
+        usedNames,
+        recentNames,
+      });
+      usedNames.add(breakfastPick.name);
+      const lunchPick = pickMealSmart({
+        pool: MEAL_DB.lunch,
+        dietPref,
+        targetCalories: targets.lunch,
+        usedNames,
+        recentNames,
+      });
+      usedNames.add(lunchPick.name);
+      const dinnerPick = pickMealSmart({
+        pool: MEAL_DB.dinner,
+        dietPref,
+        targetCalories: targets.dinner,
+        usedNames,
+        recentNames,
+      });
+      usedNames.add(dinnerPick.name);
+      const snack1Pick = pickMealSmart({
+        pool: MEAL_DB.snack,
+        dietPref,
+        targetCalories: targets.snack1,
+        usedNames,
+        recentNames,
+      });
+      usedNames.add(snack1Pick.name);
+      const snack2Pick = pickMealSmart({
+        pool: MEAL_DB.snack,
+        dietPref,
+        targetCalories: targets.snack2,
+        usedNames,
+        recentNames,
+      });
+      return { breakfast: breakfastPick, lunch: lunchPick, dinner: dinnerPick, snack1: snack1Pick, snack2: snack2Pick };
     };
 
-    const preferHigh = normalizedGoal === 'muscle gain';
-
-    const breakfast = pickMeal(sortedPool(MEAL_DB.breakfast, preferHigh), dietPref);
-    const lunch     = pickMeal(sortedPool(MEAL_DB.lunch, preferHigh),     dietPref);
-    const dinner    = pickMeal(sortedPool(MEAL_DB.dinner, preferHigh),    dietPref);
-    const snack1    = pickMeal(sortedPool(MEAL_DB.snack, preferHigh),     dietPref);
-    // pick a different snack for slot 2
-    const snackPool2 = MEAL_DB.snack.filter((s) => s.name !== snack1.name);
-    const snack2     = pickMeal(sortedPool(snackPool2, preferHigh), dietPref);
+    let { breakfast, lunch, dinner, snack1, snack2 } = buildMealSelection();
+    const latest = recentPlans[0];
+    if (samePlanMeals({ breakfast, lunch, dinner, snack1, snack2 }, latest)) {
+      ({ breakfast, lunch, dinner, snack1, snack2 } = buildMealSelection());
+    }
 
     const attach = (meal, slot) => ({
       ...meal,
@@ -164,7 +309,9 @@ export const generateDietPlan = async (req, res) => {
     const totalCarbs   = Object.values(meals).reduce((s, m) => s + m.carbs,    0);
     const totalFat     = Object.values(meals).reduce((s, m) => s + m.fat,      0);
 
-    const dietPlan = await DietPlan.create({
+    const variants = ['Metabolic Synthesis', 'Adaptive Fuel', 'Precision Macro', 'Performance Nutrition', 'Smart Recovery'];
+    const planVariant = variants[crypto.randomInt(0, variants.length)];
+    const dietPlan = {
       userId:    req.user._id,
       goal:      normalizedGoal,
       calories:  totalCals,
@@ -173,11 +320,23 @@ export const generateDietPlan = async (req, res) => {
       fat:       totalFat,
       date:      Date.now(),
       ...meals,
-    });
+      planName: `${planVariant} Protocol`,
+    };
 
-    res.status(201).json(dietPlan);
+    res.status(200).json(serializeDietPlan(dietPlan));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'AI Diet Generation Failed' });
+  }
+};
+
+export const saveDietPlan = async (req, res) => {
+  try {
+    const dietPlanData = { ...req.body, userId: req.user._id, date: Date.now() };
+    const savedPlan = await DietPlan.create(dietPlanData);
+    res.status(201).json(serializeDietPlan(savedPlan));
+  } catch (error) {
+    console.error('Error saving diet plan:', error);
+    res.status(500).json({ message: 'Failed to save diet plan' });
   }
 };

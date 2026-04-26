@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Progress from '../models/Progress.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -99,27 +100,45 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const userId = req.user._id;
+    const updates = req.body;
+    console.log(`[AUTH] Direct update for user ${userId}:`, updates);
 
-    // Only update allowed fields
-    const allowedFields = [
-      'name', 'weight', 'targetWeight', 'height', 'age',
-      'dailyCalorieTarget', 'workoutDaysPerWeek',
-      'fitnessGoal', 'experienceLevel', 'dietPreference'
-    ];
+    const oldUser = await User.findById(userId);
+    if (!oldUser) return res.status(404).json({ message: 'User not found' });
 
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        user[field] = req.body[field];
+    // Sanitize updates
+    const allowed = ['name', 'weight', 'targetWeight', 'height', 'age', 'dailyCalorieTarget', 'workoutDaysPerWeek', 'fitnessGoal', 'experienceLevel', 'dietPreference'];
+    const filteredUpdates = {};
+    allowed.forEach(k => { if (updates[k] !== undefined) filteredUpdates[k] = updates[k]; });
+
+    // Perform direct update
+    const updatedUser = await User.findByIdAndUpdate(userId, filteredUpdates, { new: true, runValidators: true }).select('-password');
+
+    // Handle weight log separately to keep it clean
+    if (updates.weight !== undefined && Number(updates.weight) !== oldUser.weight) {
+      console.log(`[AUTH] Weight change detected: ${oldUser.weight} -> ${updates.weight}`);
+      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+      const endOfDay = new Date(); endOfDay.setHours(23,59,59,999);
+      
+      const todayLog = await Progress.findOne({ userId, date: { $gte: startOfDay, $lte: endOfDay } });
+      if (todayLog) {
+        todayLog.weight = updates.weight;
+        await todayLog.save();
+      } else {
+        const lastLog = await Progress.findOne({ userId }).sort({ date: -1 });
+        await Progress.create({
+          userId,
+          weight: updates.weight,
+          workoutStreak: lastLog ? lastLog.workoutStreak : 0,
+          date: new Date()
+        });
       }
     }
 
-    const updated = await user.save();
-    const { password, ...userObj } = updated.toObject();
-    res.json(userObj);
+    return res.json(updatedUser);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('[AUTH] Profile Update Failure:', error);
+    return res.status(500).json({ message: error.message });
   }
 };

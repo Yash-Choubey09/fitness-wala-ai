@@ -28,7 +28,6 @@ const DIFFICULTY_FILTERS = ['All', 'Beginner', 'Intermediate', 'Advanced'];
 const GOAL_OPTIONS = [
   { value: 'fat loss',    label: 'Fat Loss',     icon: <Flame className="w-5 h-5" />,    color: 'text-orange-400',  bg: 'bg-orange-400/10',  border: 'border-orange-400/30' },
   { value: 'muscle gain', label: 'Muscle Gain',  icon: <Dumbbell className="w-5 h-5" />, color: 'text-neonCyan',    bg: 'bg-neonCyan/10',    border: 'border-neonCyan/30' },
-  { value: 'strength',    label: 'Strength',     icon: <Target className="w-5 h-5" />,   color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/30' },
   { value: 'endurance',   label: 'Endurance',    icon: <Activity className="w-5 h-5" />, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30' },
 ];
 
@@ -39,6 +38,7 @@ const LEVEL_OPTIONS = [
 ];
 
 const EQUIPMENT_OPTIONS = ['Any', 'None', 'Dumbbell', 'Barbell', 'Machine'];
+const DURATION_OPTIONS = [20, 30, 40, 50, 60];
 
 // ─── Main Planner Page ────────────────────────────────────────────────────────
 
@@ -55,11 +55,13 @@ export const Planner = () => {
   const [goal, setGoal] = useState(user?.fitnessGoal || 'fat loss');
   const [level, setLevel] = useState(user?.experienceLevel || 'beginner');
   const [equipPref, setEquipPref] = useState('Any');
+  const [workoutDuration, setWorkoutDuration] = useState(30);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [completed, setCompleted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const location = useLocation();
 
@@ -67,10 +69,10 @@ export const Planner = () => {
   useEffect(() => {
     // strict validation requirement
     EXERCISE_DATABASE.forEach(ex => {
-      const hasTitle = ex.name || ex.title;
-      const hasLevel = ex.difficulty || ex.level;
-      const hasVideo = ex.youtubeId || ex.gifUrl || ex.video;
-      if (!hasTitle || !ex.category || !hasLevel || !ex.duration || !hasVideo || !ex.thumbnail) {
+      const hasTitle = ex.title;
+      const hasLevel = ex.level;
+      const hasVideo = ex.videoUrl || ex.youtubeId || ex.gifUrl;
+      if (!hasTitle || !ex.category || !hasLevel || !ex.duration || !hasVideo || !ex.thumbnail || !ex.musclesTargeted || !ex.caloriesBurned || !ex.intensity || !ex.equipment) {
         console.error('Data Validation Error: Missing required fields on exercise', ex.id || hasTitle);
       }
     });
@@ -83,56 +85,104 @@ export const Planner = () => {
 
   // Filter exercises for library
   const filtered = EXERCISE_DATABASE.filter((ex) => {
-    const matchSearch = ex.name.toLowerCase().includes(search.toLowerCase()) ||
-                        ex.muscle.toLowerCase().includes(search.toLowerCase());
-    const matchMuscle = muscleFilter === 'All' || ex.muscle.includes(muscleFilter) || ex.category === muscleFilter;
-    const matchDiff = difficultyFilter === 'All' || ex.difficulty === difficultyFilter;
+    const matchSearch = ex.title.toLowerCase().includes(search.toLowerCase()) ||
+                        ex.musclesTargeted.toLowerCase().includes(search.toLowerCase());
+    const matchMuscle = muscleFilter === 'All' || ex.category === muscleFilter;
+    const matchDiff = difficultyFilter === 'All' || ex.level === difficultyFilter.toLowerCase();
     return matchSearch && matchMuscle && matchDiff;
   });
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
     setGeneratedPlan(null);
     setCompleted(false);
     setSaved(false);
+    setSaveError('');
 
-    // AI Procedural Generation Engine
-    setTimeout(() => {
-      let pool = EXERCISE_DATABASE.filter(ex => ex.difficulty.toLowerCase() === level);
+    const generateLocalPlan = () => {
+      const pickUniqueByCategory = (pool, category, selectedIds) => {
+        const choices = pool.filter((ex) => (ex.category || '').toLowerCase() === category.toLowerCase() && !selectedIds.has(ex.id));
+        if (choices.length === 0) return null;
+        return choices[Math.floor(Math.random() * choices.length)];
+      };
+      const shuffle = (arr) => [...arr].sort(() => 0.5 - Math.random());
 
-      // goal-based filtering
-      if (goal === "fat loss") {
-        pool = pool.filter(ex => ex.category.toLowerCase() === "cardio" || ex.intensity.toLowerCase() === "high");
-      } else if (goal === "muscle gain") {
-        pool = pool.filter(ex => ["chest", "back", "legs", "arms"].includes(ex.category.toLowerCase()));
-      } else if (goal === "endurance") {
-        pool = pool.filter(ex => ex.category.toLowerCase() === "cardio" || ex.category.toLowerCase() === "full body");
+      let pool = EXERCISE_DATABASE.filter((ex) => (ex.level || '').toLowerCase() === level.toLowerCase());
+      if (equipPref !== 'Any') {
+        pool = pool.filter((ex) => (ex.equipment || '').toLowerCase() === equipPref.toLowerCase());
+      }
+      if (!pool.length) pool = EXERCISE_DATABASE.filter((ex) => (ex.level || '').toLowerCase() === level.toLowerCase());
+
+      const targetExerciseCount = Math.max(5, Math.min(12, Math.round(workoutDuration / 5)));
+      const categoryOrderByGoal = {
+        'fat loss': ['Cardio', 'Full Body', 'Legs', 'Core', 'Arms', 'Back', 'Chest'],
+        'muscle gain': ['Chest', 'Back', 'Legs', 'Arms', 'Core', 'Full Body', 'Cardio'],
+        endurance: ['Cardio', 'Full Body', 'Core', 'Legs', 'Back', 'Arms', 'Chest'],
+      };
+      const orderedCategories = categoryOrderByGoal[goal] || categoryOrderByGoal['fat loss'];
+
+      const selectedIds = new Set();
+      const selected = [];
+      
+      // Phase 1: Structured (Compound)
+      for (let i = 0; i < targetExerciseCount; i += 1) {
+        const category = orderedCategories[i % orderedCategories.length];
+        const chosen = pickUniqueByCategory(pool, category, selectedIds);
+        if (chosen) {
+          selectedIds.add(chosen.id);
+          selected.push(chosen);
+        }
       }
 
-      // equipment filter
-      if (equipPref !== "Any") {
-        pool = pool.filter(ex => ex.equipment === equipPref);
+      // Phase 2: Padding
+      const remainder = shuffle(pool.filter((ex) => !selectedIds.has(ex.id)));
+      while (selected.length < targetExerciseCount && remainder.length) {
+        selected.push(remainder.shift());
       }
 
-      // fallback
-      if (pool.length === 0) {
-        pool = EXERCISE_DATABASE.filter(ex => ex.difficulty.toLowerCase() === level);
-      }
-
-      // shuffle & pick 7
-      const shuffled = [...pool].sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, 7).map(ex => ({
+      return {
+        goal,
+        level,
+        workoutDuration,
+        exercises: selected.map(ex => ({
           ...ex,
-          title: ex.name || ex.title,
-          thumbnail: ex.thumbnail,
-          videoUrl: ex.youtubeId || ex.gifUrl || ex.video,
-          level: ex.difficulty || ex.level
-      }));
+          title: ex.title || ex.name,
+          youtubeUrl: ex.videoUrl || `https://www.youtube.com/watch?v=${ex.youtubeId}`,
+          musclesTargeted: ex.musclesTargeted || ex.muscle || ex.category,
+          caloriesBurned: ex.caloriesBurned || ex.calories || '~80 kcal'
+        })),
+        date: new Date(),
+      };
+    };
 
-      setGeneratedPlan({ goal, level, exercises: selected, date: new Date() });
-      setIsGenerating(false);
-      console.log("AI DATA:", selected);
-    }, 1200);
+    try {
+      const token = localStorage.getItem('token');
+      if (isAuthenticated && token) {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/workouts/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ goal, level, equipment: equipPref, workoutDuration }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.plan?.exercises?.length) {
+            await new Promise((resolve) => setTimeout(resolve, 900));
+            setGeneratedPlan({ ...data.plan, date: new Date() });
+            setIsGenerating(false);
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Backend generator fallback:', err);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    setGeneratedPlan(generateLocalPlan());
+    setIsGenerating(false);
   };
 
   // Removed phases logic as AI now returns 7 explicit exercises
@@ -144,8 +194,8 @@ export const Planner = () => {
         ScrollTrigger.batch('.exercise-card', {
           onEnter: (batch) => {
             gsap.fromTo(batch, 
-              { opacity: 0, y: 30 },
-              { opacity: 1, y: 0, stagger: 0.1, duration: 0.6, ease: 'power2.out', overwrite: true }
+              { opacity: 0, y: 30, force3D: true },
+              { opacity: 1, y: 0, stagger: 0.08, duration: 0.55, ease: 'power2.out', overwrite: true }
             );
           },
           start: 'top 95%',
@@ -393,6 +443,26 @@ export const Planner = () => {
                     </div>
                   </div>
 
+                  {/* Workout duration selector */}
+                  <div className="mb-8">
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-3">Workout Duration</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {DURATION_OPTIONS.map((minutes) => (
+                        <button
+                          key={minutes}
+                          onClick={() => setWorkoutDuration(minutes)}
+                          className={`py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
+                            workoutDuration === minutes
+                              ? 'bg-neonPurple/15 border-neonPurple/40 text-neonPurple'
+                              : 'bg-white/4 border-white/8 text-gray-500 hover:text-gray-300 hover:border-white/20'
+                          }`}
+                        >
+                          {minutes}m
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Generate button */}
                   <motion.button
                     onClick={handleGenerate}
@@ -483,7 +553,7 @@ export const Planner = () => {
                             <h2 className="text-neonCyan text-xs font-black uppercase tracking-widest font-heading">AI Protocol Active</h2>
                           </div>
                           <p className="text-white font-bold text-lg capitalize font-heading">{generatedPlan.goal} · {generatedPlan.level}</p>
-                          <p className="text-gray-500 text-xs mt-0.5">Generated {generatedPlan.date.toLocaleDateString([], { dateStyle: 'medium' })}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">Generated {generatedPlan.date.toLocaleDateString([], { dateStyle: 'medium' })} · {generatedPlan.workoutDuration} min</p>
                         </div>
 
                         <div className="flex gap-3 flex-wrap">
@@ -504,21 +574,24 @@ export const Planner = () => {
                             <button
                               onClick={async () => {
                                 setSaving(true);
+                                setSaveError('');
                                 try {
                                   const token = localStorage.getItem('token');
                                   const exercises = generatedPlan.exercises.map(ex => ({
-                                    name: ex.name || ex.title,
-                                    sets: parseInt(ex.duration?.split('x')[0]) || 3,
-                                    reps: ex.duration || '10',
-                                    muscleGroup: ex.muscle || ex.category || '',
-                                    difficulty: ex.difficulty || level,
+                                    name: ex.title || ex.name,
+                                    sets: 3,
+                                    reps: ex.reps || '10-12',
+                                    youtubeUrl: ex.youtubeUrl || ex.videoUrl || `https://www.youtube.com/watch?v=${ex.youtubeId}`,
+                                    muscleGroup: ex.musclesTargeted || ex.category || '',
+                                    difficulty: ex.level || level,
                                   }));
-                                  const res = await fetch('http://localhost:5000/api/workouts', {
+                                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/workouts`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                                     body: JSON.stringify({ exercises, difficulty: level }),
                                   });
                                   if (res.ok) setSaved(true);
+                                  else setSaveError('Save failed. Please login again and retry.');
                                 } catch (err) { console.error(err); }
                                 finally { setSaving(false); }
                               }}
@@ -542,13 +615,14 @@ export const Planner = () => {
                           </button>
                         </div>
                       </div>
+                      {saveError && <p className="text-xs text-red-400 mt-2">{saveError}</p>}
 
                       {/* Stats bar */}
                       <div className="grid grid-cols-3 gap-3 mb-2">
                         {[
                           { label: 'Total Exercises', value: generatedPlan.exercises.length, color: 'text-neonCyan' },
-                          { label: 'Est. Duration', value: `${generatedPlan.exercises.length * 3}–${generatedPlan.exercises.length * 4} min`, color: 'text-amber-400' },
-                          { label: 'Est. Calories', value: `~${generatedPlan.exercises.length * 40} kcal`, color: 'text-neonGreen' },
+                          { label: 'Est. Duration', value: `${generatedPlan.workoutDuration} min`, color: 'text-amber-400' },
+                          { label: 'Est. Calories', value: `~${generatedPlan.exercises.length * 45} kcal`, color: 'text-neonGreen' },
                         ].map(({ label, value, color }) => (
                           <div
                             key={label}

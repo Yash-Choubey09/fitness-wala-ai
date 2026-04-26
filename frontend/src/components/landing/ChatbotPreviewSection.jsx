@@ -1,181 +1,198 @@
 import { motion } from 'framer-motion';
-import { Card } from '../ui/Card';
-import { Bot, User, Sparkles } from 'lucide-react';
+import { Bot, User, Sparkles, MessageSquare, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const chatHistory = [
+const PREVIEW_MESSAGES = [
   {
-    role: 'user',
-    message: 'Generate a fat loss workout for today.',
-    delay: 0.2
-  },
-  {
-    role: 'bot',
-    message: 'Analyzing your telemetry... Generating a high-intensity protocol focused on maximum caloric expenditure. I have structured a 45-minute HIIT circuit targeting your core and lower body. Ready to initialize?',
-    delay: 1.0,
-    isTyping: true
+    role: 'ai',
+    text: 'Your recovery metrics suggest today is optimal for a high-intensity push session. Want me to generate a full chest protocol?',
+    delay: 0.2,
   },
   {
     role: 'user',
-    message: 'Suggest a high protein diet for recovery.',
-    delay: 2.5
+    text: 'Yes, and keep it under 45 minutes.',
+    delay: 0.5,
   },
   {
-    role: 'bot',
-    message: 'Based on your recent 8,450 kcal burn rate, I recommend a 40/40/20 macro split. I have formulated a post-workout protocol featuring Grilled Salmon, Quinoa, and a Whey isolate shake. Total: 650 Kcal, 55g Protein.',
-    delay: 3.2,
-    isTyping: true
-  }
+    role: 'ai',
+    text: "Done. I've generated a 42-min hypertrophy-focused chest routine: Bench Press → Incline DB → Cable Fly → Push-ups. Shall I log it to your planner?",
+    delay: 0.8,
+  },
 ];
 
-export const ChatbotPreviewSection = () => {
+const ChatBubble = ({ msg, index }) => {
+  const isUser = msg.role === 'user';
   return (
-    <motion.section 
-      className="py-[120px] relative bg-darkPrimary z-20 overflow-hidden border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.8)]"
-      initial={{ y: 80, opacity: 0 }}
-      whileInView={{ y: 0, opacity: 1 }}
-      viewport={{ once: true, margin: "-100px" }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5, delay: msg.delay, ease: [0.16, 1, 0.3, 1] }}
+      className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
     >
-      <div className="absolute inset-0 bg-[url('https://transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02]"></div>
-      
-      {/* Background glow minimized */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-neonCyan/5 rounded-full blur-[150px] pointer-events-none z-0"></div>
+      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+        isUser ? 'bg-white/10 border border-white/15' : 'bg-[#00E0FF]/10 border border-[#00E0FF]/20'
+      }`}>
+        {isUser
+          ? <User className="w-3.5 h-3.5 text-gray-400" />
+          : <Bot className="w-3.5 h-3.5 text-[#00E0FF]" />
+        }
+      </div>
+      <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed font-light ${
+        isUser
+          ? 'bg-white/8 text-gray-200 rounded-tr-sm border border-white/8'
+          : 'bg-black/50 text-gray-300 rounded-tl-sm border border-white/8'
+      }`}>
+        {msg.text}
+      </div>
+    </motion.div>
+  );
+};
 
-      <div className="max-w-7xl mx-auto px-4 z-10 relative flex flex-col lg:flex-row items-center gap-16">
-        
-        {/* Left Typography */}
-        <div className="lg:w-1/2 text-center lg:text-left">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neonCyan/10 border border-neonCyan/30 text-neonCyan mb-6"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase tracking-widest font-heading">24/7 Autonomous Coaching</span>
-          </motion.div>
-          
-          <motion.h2   
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 font-heading tracking-tight leading-tight text-white"
-          >
-            Talk to your <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neonCyan via-neonPurple to-neonGreen">AI Coach</span>
-          </motion.h2>
-          
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="text-gray-400 text-lg font-light leading-relaxed max-w-lg mx-auto lg:mx-0 mb-8"
-          >
-            Ask specific questions, request real-time protocol adjustments, or inquire about biological recovery tactics through a seamless, intelligent conversational interface.
-          </motion.p>
+export const ChatbotPreviewSection = () => {
+  const navigate = useNavigate();
 
-          <motion.button 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="px-8 py-4 bg-white/5 hover:bg-neonCyan/10 border border-white/10 hover:border-neonCyan/50 text-white hover:text-neonCyan rounded-xl font-heading tracking-wide text-sm font-medium transition-all shadow-[0_8px_32px_rgba(0,0,0,0.37)] hover:shadow-[0_0_15px_rgba(0,224,255,0.2)] backdrop-blur-md"
-          >
-            Commence Link
-          </motion.button>
-        </div>
+  return (
+    <section className="relative py-32 bg-black overflow-hidden border-t border-white/5">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full opacity-[0.07]"
+          style={{ background: 'radial-gradient(circle, #00E0FF 0%, transparent 70%)', filter: 'blur(100px)' }} />
+      </div>
 
-        {/* Right Chat Interface Preview */}
-        <div className="lg:w-1/2 w-full max-w-2xl">
-          <motion.div 
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div 
-              className="rounded-3xl overflow-hidden flex flex-col h-[550px]"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+
+          {/* LEFT: Copy */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#00E0FF]/20 bg-[#00E0FF]/5 mb-6"
             >
-              
-              {/* Chat Header */}
-              <div className="p-4 border-b border-white/10 flex items-center gap-4 bg-white/5">
-                <div className="w-12 h-12 rounded-full bg-neonCyan/10 border border-neonCyan/20 flex items-center justify-center relative">
-                  <Bot className="w-6 h-6 text-neonCyan" />
-                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-neonGreen border-2 border-black"></span>
+              <Sparkles className="w-3.5 h-3.5 text-[#00E0FF]" />
+              <span className="text-xs font-bold uppercase tracking-[0.15em] text-[#00E0FF]">Gemini AI Powered</span>
+            </motion.div>
+
+            <motion.h2
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="text-5xl md:text-6xl font-black font-heading tracking-tighter text-white leading-[0.95] mb-6"
+            >
+              An AI coach
+              <br />
+              <span className="text-white/30">that never sleeps.</span>
+            </motion.h2>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-gray-500 text-lg font-light leading-relaxed mb-10 max-w-md"
+            >
+              Ask anything — form breakdowns, macro adjustments, deload strategies. Your AI coach is always ready with science-backed, personalized answers.
+            </motion.p>
+
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              onClick={() => navigate('/chat')}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="group flex items-center gap-3 px-7 py-4 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-neonCyan transition-colors duration-300 shadow-[0_8px_30px_rgba(255,255,255,0.1)] hover:shadow-[0_8px_30px_rgba(0,224,255,0.2)]"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Start a Conversation
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </motion.button>
+          </div>
+
+          {/* RIGHT: Chat window */}
+          <motion.div
+            initial={{ opacity: 0, x: 40, scale: 0.95 }}
+            whileInView={{ opacity: 1, x: 0, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div
+              className="rounded-3xl overflow-hidden flex flex-col"
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 40px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.04)',
+              }}
+            >
+              {/* Window chrome */}
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-white/10" />
+                  <div className="w-3 h-3 rounded-full bg-white/10" />
+                  <div className="w-3 h-3 rounded-full bg-white/10" />
                 </div>
-                <div>
-                  <h3 className="text-white font-heading tracking-wide text-sm font-medium">Fitness Wala AI</h3>
-                  <p className="text-neonCyan text-xs font-light tracking-wider">Online • Analyzing</p>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/8">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#39FF14] animate-pulse" />
+                    <span className="text-[11px] text-gray-400 font-medium">FitWala AI — Live</span>
+                  </div>
                 </div>
+                <Bot className="w-4 h-4 text-[#00E0FF]" />
               </div>
 
-              {/* Chat Body */}
-              <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6">
-                {chatHistory.map((chat, i) => (
-                  <motion.div 
-                    key={i}
-                    layout
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: chat.delay + 0.5, type: 'spring', stiffness: 200, damping: 20 }}
-                    className={`flex items-end gap-3 max-w-[85%] ${chat.role === 'user' ? 'self-end flex-row-reverse' : 'self-start'}`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${chat.role === 'user' ? 'bg-white/10 border-white/20' : 'bg-neonCyan/10 border-neonCyan/30'}`}>
-                      {chat.role === 'user' ? <User className="w-4 h-4 text-gray-300" /> : <Bot className="w-4 h-4 text-neonCyan" />}
-                    </div>
-                    
-                    <div className={`relative p-4 rounded-2xl text-sm leading-relaxed shadow-lg ${
-                      chat.role === 'user' 
-                      ? 'bg-white/10 text-white rounded-br-none border border-white/5' 
-                      : 'bg-black/60 border border-white/10 text-gray-300 rounded-bl-none'
-                    }`}>
-                      {chat.isTyping ? (
-                        <motion.div
-                          initial="hidden"
-                          whileInView="visible"
-                          viewport={{ once: true }}
-                          variants={{
-                            visible: { transition: { staggerChildren: 0.015, delayChildren: chat.delay + 0.6 } }
-                          }}
-                        >
-                          {chat.message.split("").map((char, index) => (
-                            <motion.span
-                              key={index}
-                              variants={{
-                                hidden: { opacity: 0 },
-                                visible: { opacity: 1 }
-                              }}
-                            >
-                              {char}
-                            </motion.span>
-                          ))}
-                        </motion.div>
-                      ) : (
-                        chat.message
-                      )}
-                    </div>
-                  </motion.div>
+              {/* Messages */}
+              <div className="flex flex-col gap-4 p-6">
+                {PREVIEW_MESSAGES.map((msg, i) => (
+                  <ChatBubble key={i} msg={msg} index={i} />
                 ))}
+
+                {/* Typing indicator */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 1.3 }}
+                  className="flex gap-3"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-[#00E0FF]/10 border border-[#00E0FF]/20 flex items-center justify-center shrink-0">
+                    <Bot className="w-3.5 h-3.5 text-[#00E0FF]" />
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm border border-white/8 bg-black/50 flex items-center gap-1.5">
+                    {[0, 0.15, 0.3].map((delay, i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full bg-gray-500"
+                        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+                        transition={{ duration: 1, delay, repeat: Infinity }}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
               </div>
 
-              {/* Chat Input Dummy */}
-              <div className="p-4 border-t border-white/10 bg-white/5">
-                <div className="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 flex items-center justify-between">
-                  <span className="text-gray-500 text-sm font-light">Message Fitness Wala AI...</span>
-                  <div className="w-8 h-8 rounded-lg bg-neonCyan/20 flex items-center justify-center">
-                    <span className="text-neonCyan text-xs">↵</span>
+              {/* Input area (clickable) */}
+              <div
+                className="p-4 border-t border-white/5 cursor-pointer group"
+                onClick={() => navigate('/chat')}
+              >
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/3 border border-white/8 group-hover:border-[#00E0FF]/30 transition-colors duration-300">
+                  <span className="flex-1 text-gray-600 text-sm font-light group-hover:text-gray-400 transition-colors">
+                    Ask anything about fitness &amp; nutrition…
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-[#00E0FF]/10 group-hover:bg-[#00E0FF] flex items-center justify-center transition-colors duration-300">
+                    <ArrowRight className="w-4 h-4 text-[#00E0FF] group-hover:text-black transition-colors" />
                   </div>
                 </div>
               </div>
             </div>
           </motion.div>
         </div>
-        
       </div>
-    </motion.section>
+    </section>
   );
 };

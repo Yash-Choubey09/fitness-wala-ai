@@ -2,6 +2,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Target, Lightbulb } from 'lucide-react';
 import { useEffect } from 'react';
 
+const getYouTubeId = (exercise) => {
+  if (exercise.youtubeId) return exercise.youtubeId;
+  if (!exercise.videoUrl) return '';
+  const match = exercise.videoUrl.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return match?.[1] || '';
+};
+
 export const VideoModal = ({ exercise, onClose }) => {
   // Close on Escape key
   useEffect(() => {
@@ -13,10 +20,11 @@ export const VideoModal = ({ exercise, onClose }) => {
   if (!exercise) return null;
 
   const difficultyColor = {
-    Beginner: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
-    Intermediate: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
-    Advanced: 'text-red-400 bg-red-400/10 border-red-400/30',
-  }[exercise.difficulty] || 'text-gray-400 bg-gray-400/10 border-gray-400/30';
+    beginner: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
+    intermediate: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
+    advanced: 'text-red-400 bg-red-400/10 border-red-400/30',
+  }[(exercise.level || 'beginner').toLowerCase()] || 'text-gray-400 bg-gray-400/10 border-gray-400/30';
+  const youtubeId = getYouTubeId(exercise);
 
   return (
     <AnimatePresence>
@@ -49,8 +57,9 @@ export const VideoModal = ({ exercise, onClose }) => {
           {/* YouTube Embed */}
           <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${exercise.youtubeId}?autoplay=1&rel=0&modestbranding=1`}
-              title={`${exercise.name} Demo`}
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+              title={`${exercise.title} Demo`}
+              loading="lazy"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="absolute inset-0 w-full h-full rounded-t-2xl"
@@ -63,11 +72,11 @@ export const VideoModal = ({ exercise, onClose }) => {
             {/* Header */}
             <div className="flex flex-wrap items-start gap-3 justify-between">
               <div>
-                <h2 className="text-2xl font-black text-white font-heading uppercase tracking-wide">{exercise.name}</h2>
-                <p className="text-neonCyan text-sm mt-0.5 font-medium">{exercise.muscle}</p>
+                <h2 className="text-2xl font-black text-white font-heading uppercase tracking-wide">{exercise.title}</h2>
+                <p className="text-neonCyan text-sm mt-0.5 font-medium">{exercise.musclesTargeted}</p>
               </div>
               <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest border ${difficultyColor}`}>
-                {exercise.difficulty}
+                {exercise.level}
               </span>
             </div>
 
@@ -76,7 +85,7 @@ export const VideoModal = ({ exercise, onClose }) => {
               {[
                 { label: 'Sets', value: exercise.sets },
                 { label: 'Reps', value: exercise.reps },
-                { label: 'Calories', value: exercise.calories },
+                { label: 'Calories', value: exercise.caloriesBurned },
                 { label: 'Equipment', value: exercise.equipment },
               ].map(({ label, value }) => (
                 <div key={label} className="p-3 rounded-xl border border-white/6 bg-white/3 text-center">
@@ -98,9 +107,9 @@ export const VideoModal = ({ exercise, onClose }) => {
             {/* Muscles Worked */}
             <div className="p-4 rounded-xl border border-neonCyan/15 bg-neonCyan/5">
               <p className="text-neonCyan text-xs font-bold uppercase tracking-widest mb-2">Muscles Worked</p>
-              <p className="text-white font-semibold text-sm">{exercise.muscle}</p>
+              <p className="text-white font-semibold text-sm">{exercise.musclesTargeted}</p>
               <p className="text-gray-500 text-xs mt-1">
-                Primary: {exercise.muscle} &nbsp;·&nbsp; Secondary: Core / Stabilizers
+                Primary: {exercise.musclesTargeted} &nbsp;·&nbsp; Secondary: Core / Stabilizers
               </p>
             </div>
 
@@ -111,7 +120,7 @@ export const VideoModal = ({ exercise, onClose }) => {
                 <p className="text-xs text-amber-400 font-bold uppercase tracking-widest">Pro Tips for Beginners</p>
               </div>
               <div className="space-y-2">
-                {exercise.tips.map((tip, i) => (
+                {(exercise.tips || []).map((tip, i) => (
                   <div key={i} className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-amber-400/15 border border-amber-400/30 flex items-center justify-center shrink-0 text-amber-400 text-[10px] font-black mt-0.5">
                       {i + 1}
