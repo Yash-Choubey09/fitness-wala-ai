@@ -48,8 +48,7 @@ Ensure you are in the project root directory (`c:\Users\LENOVO\Desktop\AGAutonom
    ```
 
 ### Step 4: Access the Application
-- The frontend will run on `http://localhost:5173`
-- The backend API runs on `http://localhost:5000`
+Access the application on - fitness-wala-ai.vercel.app
 
 ---
 *Created by Antigravity (Advanced Agentic AI).*
